@@ -12,7 +12,7 @@ $connection = new \NatsStreaming\Connection($options);
 $connection->connect();
 
 $subOptions = new \NatsStreaming\SubscriptionOptions();
-$subOptions->setStartAt(\NatsStreamingProtos\StartPosition::First());
+$subOptions->setStartAt(\NatsStreamingProtos\StartPosition::LastReceived());
 
 $subjects = 'some.subject';
 $callback = function ($message) {
