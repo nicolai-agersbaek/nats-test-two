@@ -7,7 +7,7 @@ namespace SmartWeb\Nats\Support;
 /**
  * Abstract representation of a data container.
  */
-abstract class DataContainer implements \ArrayAccess, \JsonSerializable
+abstract class DataContainer implements \ArrayAccess, \JsonSerializable, ArrayableInterface
 {
     
     // TODO: Implementation of semi-open data container with configurable property access
@@ -28,7 +28,7 @@ abstract class DataContainer implements \ArrayAccess, \JsonSerializable
     /**
      * @inheritDoc
      */
-    final public function __get($name)
+    public function __get($name)
     {
         return $this[$name];
     }
@@ -36,7 +36,7 @@ abstract class DataContainer implements \ArrayAccess, \JsonSerializable
     /**
      * @inheritDoc
      */
-    final public function __set($name, $value)
+    public function __set($name, $value)
     {
         $this[$name] = $value;
     }
@@ -44,7 +44,7 @@ abstract class DataContainer implements \ArrayAccess, \JsonSerializable
     /**
      * @inheritDoc
      */
-    final public function __isset($name)
+    public function __isset($name)
     {
         return $this->offsetExists($name);
     }
@@ -52,7 +52,7 @@ abstract class DataContainer implements \ArrayAccess, \JsonSerializable
     /**
      * @inheritDoc
      */
-    final public function offsetExists($offset) : bool
+    public function offsetExists($offset) : bool
     {
         return $this->elements->offsetExists($offset);
     }
@@ -60,7 +60,7 @@ abstract class DataContainer implements \ArrayAccess, \JsonSerializable
     /**
      * @inheritDoc
      */
-    final public function offsetGet($offset)
+    public function offsetGet($offset)
     {
         return $this->elements->offsetGet($offset);
     }
@@ -68,7 +68,7 @@ abstract class DataContainer implements \ArrayAccess, \JsonSerializable
     /**
      * @inheritDoc
      */
-    final public function offsetSet($offset, $value) : void
+    public function offsetSet($offset, $value) : void
     {
         $this->elements->offsetSet($offset, $value);
     }
@@ -76,7 +76,7 @@ abstract class DataContainer implements \ArrayAccess, \JsonSerializable
     /**
      * @inheritDoc
      */
-    final public function offsetUnset($offset) : void
+    public function offsetUnset($offset) : void
     {
         $this->elements->offsetUnset($offset);
     }
@@ -84,7 +84,7 @@ abstract class DataContainer implements \ArrayAccess, \JsonSerializable
     /**
      * @inheritDoc
      */
-    final public function jsonSerialize()
+    public function jsonSerialize() : array
     {
         return $this->toArray();
     }
@@ -92,7 +92,7 @@ abstract class DataContainer implements \ArrayAccess, \JsonSerializable
     /**
      * @inheritDoc
      */
-    public function toArray()
+    public function toArray() : array
     {
         return $this->elements->getArrayCopy();
     }
