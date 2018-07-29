@@ -13,84 +13,128 @@ abstract class LazyDataContainer extends DataContainer
     /**
      * Whether or not the denormalizers for this data container have been created.
      *
-     * @var bool
+     * @var bool[]
      */
-    private static $denormalizersInitialized = false;
+    private static $denormalizersInitialized = [];
     
     /**
      * The denormalizers used to lazily resolve values for this data container.
      *
-     * @var callable[]
+     * @var DenormalizerInterface[]
      */
     private static $denormalizers = [];
+    
+    /**
+     * Whether or not all values have been resolved.
+     *
+     * @var bool
+     */
+    private $resolvedAll = false;
     
     /**
      * @var bool[]
      */
     private $resolved = [];
     
-    
     /**
      * @inheritDoc
      */
     final public function __get($name)
     {
-        return $this[$name];
+        return $this->isResolved($name)
+            ? $this[$name]
+            : $this->resolve($name);
     }
+    
+    /**
+     * @param string $key
+     *
+     * @return bool
+     */
+    private function isResolved(string $key) : bool
+    {
+        return $this->resolved[$key] = $this->resolved[$key] ?? false;
+    }
+    
+    /**
+     * @param string $key
+     *
+     * @return bool
+     */
+    private function hasDenormalizer(string $key) : bool
+    {
+        return \array_key_exists($key, self::$denormalizers);
+    }
+    
+    /**
+     * @param string $key
+     *
+     * @return mixed
+     */
+    private function resolve(string $key)
+    {
+        $this->resolved[$key] = true;
+        $value = $this[$key];
+        
+        return $this->hasDenormalizer($key)
+            ? $this->getDenormalizer($key)->denormalize($value)
+            : $value;
+    }
+    
+    /**
+     * @param string $key
+     *
+     * @return DenormalizerInterface
+     */
+    private function getDenormalizer(string $key) : DenormalizerInterface
+    {
+        $this->initializeDenormalizersIfNeeded();
+        
+        return self::$denormalizers[$key];
+    }
+    
+    private function initializeDenormalizersIfNeeded() : void
+    {
+        if (!self::$denormalizersInitialized[static::class]) {
+            $this->initializeDenormalizers();
+            self::$denormalizersInitialized[static::class] = true;
+        }
+    }
+    
+    private function initializeDenormalizers() : void
+    {
+        self::$denormalizers = static::getDenormalizers();
+    }
+    
+    /**
+     * @return DenormalizerInterface[]
+     */
+    abstract protected static function getDenormalizers() : array;
     
     /**
      * @inheritDoc
      */
-    final public function __isset($name)
+    final public function toArray() : array
     {
-        return $this->offsetExists($name);
+        $this->resolveAllIfNeeded();
+        
+        return parent::toArray();
     }
     
-    /**
-     * @inheritDoc
-     */
-    final public function offsetExists($offset) : bool
+    private function resolveAllIfNeeded() : void
     {
-        return $this->elements->offsetExists($offset);
+        if (!$this->resolvedAll) {
+            $this->resolveAll();
+            $this->resolvedAll = true;
+        }
     }
     
-    /**
-     * @inheritDoc
-     */
-    final public function offsetGet($offset)
+    private function resolveAll() : void
     {
-        return $this->elements->offsetGet($offset);
-    }
-    
-    /**
-     * @inheritDoc
-     */
-    final public function offsetSet($offset, $value) : void
-    {
-        $this->elements->offsetSet($offset, $value);
-    }
-    
-    /**
-     * @inheritDoc
-     */
-    final public function offsetUnset($offset) : void
-    {
-        $this->elements->offsetUnset($offset);
-    }
-    
-    /**
-     * @inheritDoc
-     */
-    final public function jsonSerialize()
-    {
-        return $this->toArray();
-    }
-    
-    /**
-     * @inheritDoc
-     */
-    final public function toArray()
-    {
-        return $this->elements->getArrayCopy();
+        foreach ($this as $key => $value) {
+            if (!$this->isResolved($key)) {
+                $this[$key] = $this->resolve($key);
+            }
+        }
     }
 }

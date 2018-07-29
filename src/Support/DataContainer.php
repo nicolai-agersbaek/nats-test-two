@@ -7,7 +7,7 @@ namespace SmartWeb\Nats\Support;
 /**
  * Abstract representation of a data container.
  */
-abstract class DataContainer implements \ArrayAccess, \JsonSerializable, ArrayableInterface
+abstract class DataContainer implements \ArrayAccess, \JsonSerializable, \IteratorAggregate, ArrayableInterface
 {
     
     // TODO: Implementation of semi-open data container with configurable property access
@@ -87,6 +87,14 @@ abstract class DataContainer implements \ArrayAccess, \JsonSerializable, Arrayab
     public function jsonSerialize() : array
     {
         return $this->toArray();
+    }
+    
+    /**
+     * @inheritDoc
+     */
+    public function getIterator() : \Traversable
+    {
+        return $this->elements->getIterator();
     }
     
     /**
