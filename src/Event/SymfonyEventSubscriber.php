@@ -4,10 +4,8 @@ declare(strict_types = 1);
 
 namespace SmartWeb\Nats\Event;
 
-use SmartWeb\CloudEvents\VersionInterface;
 use SmartWeb\Nats\BroadcastableInterface;
 use SmartWeb\Nats\Connection\ConnectionInterface;
-use SmartWeb\Nats\Payload\PayloadBuilder;
 use Symfony\Component\EventDispatcher\Event;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
@@ -22,7 +20,7 @@ final class SymfonyEventSubscriber implements EventSubscriberInterface
     /**
      * @var SymfonyEventSubscriptionInterface[]
      */
-    private static $subscribedEvents = [];
+    private static $subscriptions = [];
     
     /**
      * @var ConnectionInterface
@@ -30,54 +28,72 @@ final class SymfonyEventSubscriber implements EventSubscriberInterface
     private $connection;
     
     /**
-     * @var string
+     * @var BroadcastableConverterInterface
      */
-    private $eventSource;
+    private $converter;
     
     /**
-     * @var VersionInterface
-     */
-    private $cloudEventsVersion;
-    
-    /**
-     * @param ConnectionInterface $connection
-     * @param string              $eventSource
-     * @param VersionInterface    $cloudEventsVersion
+     * @param ConnectionInterface             $connection
+     * @param BroadcastableConverterInterface $converter
      */
     public function __construct(
         ConnectionInterface $connection,
-        string $eventSource,
-        VersionInterface $cloudEventsVersion
+        BroadcastableConverterInterface $converter
     ) {
         $this->connection = $connection;
-        $this->eventSource = $eventSource;
-        $this->cloudEventsVersion = $cloudEventsVersion;
-    }
-    
-    public static function getSubscribedEvents()
-    {
-        // TODO: Implement getSubscribedEvents() method.
-        throw new \BadMethodCallException(__METHOD__ . ' not yet implemented!');
+        $this->converter = $converter;
     }
     
     /**
-     * @param SymfonyEventSubscriptionInterface[] $events
+     * @inheritDoc
      */
-    public static function setSubscribedEvents(array $events) : void
+    public static function getSubscribedEvents() : array
     {
-        self::$subscribedEvents = [];
+        return \array_map(
+            function (SymfonyEventSubscriptionInterface $subscription) : array {
+                return [
+                    'broadcastEvent',
+                    $subscription->getEventPriority(),
+                ];
+            },
+            self::$subscriptions
+        );
+    }
+    
+    /**
+     * @return SymfonyEventSubscriptionInterface[]
+     */
+    public static function getSubscriptions() : array
+    {
+        return self::$subscriptions;
+    }
+    
+    /**
+     * @param SymfonyEventSubscriptionInterface[] $subscriptions
+     */
+    public static function setSubscriptions(array $subscriptions) : void
+    {
+        self::$subscriptions = [];
         
-        foreach ($events as $subscription) {
-            self::addEventSubscription($subscription);
+        self::addSubscriptions($subscriptions);
+    }
+    
+    /**
+     * @param SymfonyEventSubscriptionInterface[] $subscriptions
+     */
+    public static function addSubscriptions(array $subscriptions) : void
+    {
+        foreach ($subscriptions as $subscription) {
+            self::addSubscription($subscription);
         }
     }
     
     /**
      * @param SymfonyEventSubscriptionInterface $subscription
      */
-    private static function addEventSubscription(SymfonyEventSubscriptionInterface $subscription) : void
+    public static function addSubscription(SymfonyEventSubscriptionInterface $subscription) : void
     {
-        self::$subscribedEvents[$subscription->getEventName()] = $subscription;
+        self::$subscriptions[$subscription->getEventName()] = $subscription;
     }
     
     /**
@@ -97,14 +113,6 @@ final class SymfonyEventSubscriber implements EventSubscriberInterface
      */
     private function broadcastEvent(BroadcastableInterface $event) : void
     {
-        $payload = PayloadBuilder::create()
-                                 ->setEventId($event->getId())
-                                 ->setEventType($event->getName())
-                                 ->setData($event->getData())
-                                 ->setCloudEventsVersion($this->cloudEventsVersion)
-                                 ->setSource($this->eventSource)
-                                 ->build();
-        
-        $this->connection->publish($event->getChannel(), $payload);
+        $this->connection->publish($event->getChannel(), $this->converter->convert($event));
     }
 }
